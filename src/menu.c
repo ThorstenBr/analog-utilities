@@ -32,6 +32,7 @@ typedef enum {
 } menu_type_t;
 
 typedef struct menu_s {
+    int enabled;
     menu_type_t type;
     char *entry;
     char *filename_enhanced;
@@ -40,17 +41,15 @@ typedef struct menu_s {
 } menu_t;
 
 menu_t launcher[] = {
-    { MENU_LAUNCH_NOCHECKARGS, " Config Utility       ", "CONFIG.ENH",   "CONFIG.BASE",  "" },
-    { MENU_LAUNCH_NOCHECKARGS, " Font Manager         ", "FONTMGR.ENH",  "FONTMGR.BASE", "" },
-    { MENU_LAUNCH_CHECKARGS,   " Theme Chooser        ", "BASIC.SYSTEM", "BASIC.SYSTEM", "THEMES.BAS" },
-    { MENU_LAUNCH_NOCHECKARGS, " Format Utility       ", "FORMAT.ENH",   "FORMAT.BASE",  "" },
-    { MENU_LAUNCH_NOCHECKARGS, " Config Remover       ", "RMCFG.ENH",    "RMCFG.BASE",   "" },
-    { MENU_LAUNCH_NOCHECKARGS, " One-time VGA Tool    ", "OTVGA.ENH",    "OTVGA.BASE",   "" },
-    { MENU_SEPARATOR,          NULL,                     NULL,           NULL,           NULL },
-    { MENU_LAUNCH_NOCHECKARGS, " Applesoft Basic      ", "BASIC.SYSTEM", "BASIC.SYSTEM", "" },
-    { MENU_SEPARATOR,          NULL,                     NULL,           NULL,           NULL },
-    { MENU_EXIT,               " Exit                 ", NULL,           NULL,           NULL },
-    { MENU_TERMINATOR,         NULL,                     NULL,           NULL,           NULL },
+    { 0, MENU_LAUNCH_NOCHECKARGS, " Config Utility       ", "CONFIG.ENH",     "CONFIG.BASE",    "" },
+    { 0, MENU_LAUNCH_NOCHECKARGS, " Font Manager         ", "FONTMGR.ENH",    "FONTMGR.BASE",   "" },
+    { 0, MENU_SEPARATOR,          NULL,                     NULL,             NULL,             NULL },
+    { 0, MENU_LAUNCH_NOCHECKARGS, " Applesoft Basic      ", "BASIC.SYSTEM",   "BASIC.SYSTEM",   "" },
+    { 0, MENU_LAUNCH_NOCHECKARGS, " ADTPRO               ", "ADTPRO/ADTPRO",  "ADTPRO/ADTPRO",  "" },
+    { 0, MENU_LAUNCH_NOCHECKARGS, " VSDRIVE              ", "VDRIVE/VSDRIVE", "VDRIVE/VSDRIVE", "" },
+    { 0, MENU_SEPARATOR,          NULL,                     NULL,             NULL,             NULL },
+    { 1, MENU_EXIT,               " Exit                 ", NULL,             NULL,             NULL },
+    { 0, MENU_TERMINATOR,         NULL,                     NULL,             NULL,             NULL },
 };
 
 int main_menu_action(int action) {
