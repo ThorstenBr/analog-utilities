@@ -12,6 +12,12 @@
  #define CHAR_BORDER_TOP_LEFT     0xDA
  #define CHAR_BORDER_TOP_RIGHT    0xDF
  #define CHAR_TITLEBAR_FOLDER     0xD4
+ #define CHAR_SCROLLBAR_FULL      0xA0
+ #define CHAR_SCROLLBAR_EMPTY     0xD6
+ #define CHAR_SCROLLBAR_RIGHT     0xDF
+ #define CHAR_SCROLLBAR_LEFT      0xDA
+ #define CHAR_SCROLLBAR_TOP       0xDC
+ #define CHAR_SCROLLBAR_BOTTOM    0xDC
  #define CHAR_BORDER_BOTTOM_LEFT  ' '
  #define CHAR_BORDER_BOTTOM_RIGHT ' '
 #else
@@ -25,6 +31,12 @@
  #define CHAR_BORDER_TOP_LEFT     '.'
  #define CHAR_BORDER_TOP_RIGHT    '.'
  #define CHAR_TITLEBAR_FOLDER     '_'
+ #define CHAR_SCROLLBAR_FULL      0xA0
+ #define CHAR_SCROLLBAR_EMPTY     ':'
+ #define CHAR_SCROLLBAR_RIGHT     ' '
+ #define CHAR_SCROLLBAR_LEFT      ' '
+ #define CHAR_SCROLLBAR_TOP       ' '
+ #define CHAR_SCROLLBAR_BOTTOM    ' '
  #define CHAR_BORDER_BOTTOM_LEFT  '\''
  #define CHAR_BORDER_BOTTOM_RIGHT '\''
 #endif

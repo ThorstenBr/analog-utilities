@@ -7,9 +7,10 @@
 #define VGA_TBCOLOR   CARD_REGISTER(0x2)
 #define VGA_BORDER    CARD_REGISTER(0x3)
 
-#define CF_PTRL *((volatile unsigned char *)(0xC0ED | (cardslot << 8)))
-#define CF_PTRH *((volatile unsigned char *)(0xC0EE | (cardslot << 8)))
-#define CF_DATA *((volatile unsigned char *)(0xC0EF | (cardslot << 8)))
+#define CF_PTRL *((volatile unsigned char *)(0xC0EC | (cardslot << 8)))
+#define CF_PTRH *((volatile unsigned char *)(0xC0ED | (cardslot << 8)))
+#define CF_DATR *((volatile unsigned char *)(0xC0EE | (cardslot << 8)))
+#define CF_DATW *((volatile unsigned char *)(0xC0EF | (cardslot << 8)))
 
 #define CMD_BUFFER ((volatile unsigned char *)(0xC0F0 | (cardslot << 8)))
 #define RPY_BUFFER ((volatile unsigned char *)(0xC0F8 | (cardslot << 8)))
@@ -71,10 +72,12 @@ void hexprint(volatile uint8_t *buf, int size) {
 int cfg_cmd3(char *cmd, uint16_t param0, uint16_t param1, uint16_t param2) {
     uint16_t timeout = 0x1fff;
 
+#if 0
     gotoy(16); gotox(8);
     cputc(cmd[0]);
     cputc(cmd[1]);
     cprintf(" $%04X $%04X $%04X", param0, param1, param2);
+#endif
     
     RPY_BUFFER[7] = 0xFF;
     CMD_BUFFER[7] = (param2 >> 8) & 0xFF;
@@ -103,8 +106,10 @@ int cfg_cmd3(char *cmd, uint16_t param0, uint16_t param1, uint16_t param2) {
         if(timeout > 0) timeout--;
     }
 
+#if 0
     gotoy(18); gotox(8);
     hexprint(RPY_BUFFER, 8);
+#endif
 
     return (timeout == 0) || (RPY_BUFFER[0] != REPLY_OK);
 }

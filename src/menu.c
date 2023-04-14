@@ -45,8 +45,8 @@ menu_t launcher[] = {
     { 0, MENU_LAUNCH_NOCHECKARGS, " Font Manager         ", "FONTMGR.ENH",    "FONTMGR.BASE",   "" },
     { 0, MENU_SEPARATOR,          NULL,                     NULL,             NULL,             NULL },
     { 0, MENU_LAUNCH_NOCHECKARGS, " Applesoft Basic      ", "BASIC.SYSTEM",   "BASIC.SYSTEM",   "" },
-    { 0, MENU_LAUNCH_NOCHECKARGS, " ADTPRO               ", "ADTPRO/ADTPRO",  "ADTPRO/ADTPRO",  "" },
-    { 0, MENU_LAUNCH_NOCHECKARGS, " VSDRIVE              ", "VDRIVE/VSDRIVE", "VDRIVE/VSDRIVE", "" },
+    { 0, MENU_LAUNCH_NOCHECKARGS, " ADTPro Serial        ", "ADTPRO/ADTPRO",  "ADTPRO/ADTPRO",  "" },
+    { 0, MENU_LAUNCH_NOCHECKARGS, " Virtual Serial Drive ", "VDRIVE/VSDRIVE", "VDRIVE/VSDRIVE", "" },
     { 0, MENU_SEPARATOR,          NULL,                     NULL,             NULL,             NULL },
     { 1, MENU_EXIT,               " Exit                 ", NULL,             NULL,             NULL },
     { 0, MENU_TERMINATOR,         NULL,                     NULL,             NULL,             NULL },
@@ -72,12 +72,22 @@ int main_menu_action(int action) {
             f = fopen(launcher[action].filename_enhanced, "rb");
             if(f != NULL) {
                 fclose(f);
+
+                backdrop(PROGNAME);
+                gotoy(12); gotox(9);
+                cputs("Launching Application");
+
                 exec(launcher[action].filename_enhanced, launcher[action].arguments);
             }
 #endif
             f = fopen(launcher[action].filename_base, "rb");
             if(f != NULL) {
                 fclose(f);
+
+                backdrop(PROGNAME);
+                gotoy(12); gotox(9);
+                cputs("Launching Application");
+
                 exec(launcher[action].filename_base, launcher[action].arguments);
             }
 

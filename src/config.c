@@ -373,6 +373,9 @@ int parse_config() {
         case CFGTOKEN_HOST_PRAVETZ:
             machine = MACHINE_PRAVETZ;
             break;
+        case CFGTOKEN_HOST_BASIS:
+            machine = MACHINE_BASIS;
+            break;
         case CFGTOKEN_MUX_LOOP:
             serialmux[(ptr[i] >> 16) & 1] = SERIAL_LOOP;
             break;
@@ -405,11 +408,11 @@ int parse_config() {
             break;
         case CFGTOKEN_WIFI_SSID:
             memset(wifi_ssid, 0, sizeof(wifi_ssid));
-            strncpy(wifi_ssid, (char*)(ptr+1), (ptr[i] >> 24));
+            strncpy(wifi_ssid, (char*)(&ptr[i+1]), (ptr[i] >> 24));
             break;
         case CFGTOKEN_WIFI_PSK:
             memset(wifi_psk, 0, sizeof(wifi_psk));
-            strncpy(wifi_psk, (char*)(ptr+1), (ptr[i] >> 24));
+            strncpy(wifi_psk, (char*)(&ptr[i+1]), (ptr[i] >> 24));
             break;
         case CFGTOKEN_WIFI_IP:
             wifi_address = ptr[i+1];
@@ -419,10 +422,24 @@ int parse_config() {
             break;
         case CFGTOKEN_JD_HOST:
             memset(jd_host, 0, sizeof(jd_host));
-            strncpy(jd_host, (char*)(ptr+1), (ptr[i] >> 24));
+            strncpy(jd_host, (char*)(&ptr[i+1]), (ptr[i] >> 24));
             break;
         case CFGTOKEN_JD_PORT:
             jd_port = ptr[i+1];
+            break;
+        case CFGTOKEN_FONT_00:
+            default_font = (ptr[i] >> 16) & 0x2F;
+            break;
+        case CFGTOKEN_MONO_00:
+            mono_palette = (ptr[i] >> 20) & 0xF;
+            if(mono_palette) mono_palette = (mono_palette & 0x7) + 1;
+            break;
+        case CFGTOKEN_TBCOLOR:
+            terminal_fgcolor = (ptr[i] >> 20) & 0xF;
+            terminal_bgcolor = (ptr[i] >> 16) & 0xF;
+            break;
+        case CFGTOKEN_BORDER:
+            terminal_border = (ptr[i] >> 16) & 0xF;
             break;
         }
 
@@ -437,11 +454,17 @@ int build_config(uint32_t rev) {
     int i = 0;
     uint32_t *ptr = (uint32_t*)blockbuffer;
 
-    memset(blockbuffer, 0, sizeof(blockbuffer));
+    memset(blockbuffer, 0xFF, sizeof(blockbuffer));
 
     ptr[i++] = NEWCONFIG_MAGIC;
     ptr[i++] = CFGTOKEN_REVISION | ((rev & 0xff) << 16);
-    ptr[i++] = CFGTOKEN_MONO_00 | ((((uint32_t)mono_palette) & 0xF) << 20);
+
+    ptr[i++] = CFGTOKEN_FONT_00 | ((((uint32_t)default_font) & 0x2F) << 20);
+    if(mono_palette) {
+        ptr[i++] = CFGTOKEN_MONO_80 | ((((uint32_t)mono_palette-1) & 0xF) << 20);
+    } else {
+        ptr[i++] = CFGTOKEN_MONO_00;
+    }
     ptr[i++] = CFGTOKEN_TBCOLOR | ((((uint32_t)terminal_fgcolor) & 0xF) << 20) | ((((uint32_t)terminal_bgcolor) & 0xF) << 16);
     ptr[i++] = CFGTOKEN_BORDER | ((((uint32_t)terminal_border) & 0xF) << 16);
 
@@ -529,11 +552,11 @@ int build_config(uint32_t rev) {
     }
 
     ptr[i++] = CFGTOKEN_WIFI_SSID | (((uint32_t)strlen(wifi_ssid)+1) << 24);
-    strncpy((char*)ptr, wifi_ssid, 31);
+    strncpy((char*)(&ptr[i]), wifi_ssid, longmin(strlen(wifi_ssid)+1,31));
     i += (strlen(wifi_ssid)+4) >> 2;
 
     ptr[i++] = CFGTOKEN_WIFI_PSK | (((uint32_t)strlen(wifi_psk)+1) << 24);
-    strncpy((char*)ptr, wifi_psk, 31);
+    strncpy((char*)(&ptr[i]), wifi_psk, longmin(strlen(wifi_psk)+1,31));
     i += (strlen(wifi_psk)+4) >> 2;
 
     ptr[i++] = CFGTOKEN_WIFI_IP;
@@ -543,11 +566,13 @@ int build_config(uint32_t rev) {
     ptr[i++] = wifi_netmask;
 
     ptr[i++] = CFGTOKEN_JD_HOST | (((uint32_t)strlen(jd_host)+1) << 24);
-    strncpy((char*)ptr, jd_host, 31);
+    strncpy((char*)(&ptr[i]), jd_host, longmin(strlen(jd_host)+1,31));
     ptr += (strlen(jd_host)+4) >> 2;
 
     ptr[i++] = CFGTOKEN_JD_PORT;
     ptr[i++] = jd_port;
+
+    ptr[i++] = NEWCONFIG_EOF_MARKER;
 
     return i*4;
 }
@@ -604,7 +629,7 @@ void cfgfile_upload(char *pdfile, uint16_t block) {
     CF_PTRL = 0;
     CF_PTRH = 0;
     for(i = 0; i < sizeof(blockbuffer); i++) {
-        CF_DATA = blockbuffer[i];
+        CF_DATW = blockbuffer[i];
     }
 
     if(cfg_cmd1("fw", block)) {
@@ -664,7 +689,7 @@ void cfgfile_download(char *pdfile, uint16_t block) {
     CF_PTRL = 0;
     CF_PTRH = 0;
     for(i = 0; i < sizeof(blockbuffer); i++) {
-        blockbuffer[i] = CF_DATA;
+        blockbuffer[i] = CF_DATR;
     }
 
     byteswritten = fwrite(blockbuffer, 1, sizeof(blockbuffer), f);
@@ -688,7 +713,7 @@ cleanup:
 }
 
 void restore_config() {
-    uint16_t next;
+    uint16_t last, next;
 
     // Get current config blocks
     if(cfg_cmd0("fc")) {
@@ -699,10 +724,24 @@ void restore_config() {
         ok_button();
         return;
     }
-    
+
     next = RPY_BUFFER[5];
     next <<= 8;
     next |= RPY_BUFFER[4];
+
+    last = RPY_BUFFER[3];
+    last <<= 8;
+    last |= RPY_BUFFER[2];
+
+    if(cfg_cmd1("fe", last)) {
+        backdrop(PROGNAME);
+        window(" Error ", 28, 7, 1);
+        gotoy(11); gotox(7);
+        cprintf("Unable to erase block $%4X", block);
+        ok_button();
+
+        goto cleanup;
+    }
 
     cfgfile_upload("CONFIG.BACKUP", next);
 }
@@ -732,7 +771,7 @@ cleanup:
 
 void read_config() {
     int i;
-    uint16_t last;
+    uint16_t next, last;
 
     backdrop(PROGNAME);
     window(" Please Wait ", 26, 6, 1);
@@ -768,7 +807,7 @@ void read_config() {
     CF_PTRL = 0;
     CF_PTRH = 0;
     for(i = 0; i < sizeof(blockbuffer); i++) {
-        blockbuffer[i] = CF_DATA;
+        blockbuffer[i] = CF_DATR;
     }
 
     parse_config();
@@ -817,7 +856,7 @@ int write_config() {
     CF_PTRL = 0;
     CF_PTRH = 0;
     for(i = 0; i < sizeof(blockbuffer); i++) {
-        CF_DATA = blockbuffer[i];
+        CF_DATW = blockbuffer[i];
     }
 
     if(cfg_cmd1("fw", next)) {
@@ -876,12 +915,14 @@ int format_card(void) {
         goto cleanup;
     }
     
-    last = RPY_BUFFER[3];
-    last <<= 8;
-    last |= RPY_BUFFER[2];
     next = RPY_BUFFER[5];
     next <<= 8;
     next |= RPY_BUFFER[4];
+
+    last = RPY_BUFFER[3];
+    last <<= 8;
+    last |= RPY_BUFFER[2];
+    
     if(last != next) {
         if(cfg_cmd1("fe", last)) {
             backdrop(PROGNAME);
@@ -1636,12 +1677,9 @@ void main (void) {
     int selected_item = 0;
     int y = 12 - 6;
 
-#if 0
     if(!prompt_slot(PROGNAME)) {
-        exec("MENU.SYSTEM", "");
-        return;
+        goto cleanup;
     }
-#endif
 
     switch(get_ostype() & 0xF0) {
         default:
@@ -1656,7 +1694,6 @@ void main (void) {
             break;
     }
 
-#if 0
     backdrop(PROGNAME);
     window(" Please Wait ", 26, 6, 1);
     gotoy(11); gotox(9);
@@ -1665,13 +1702,12 @@ void main (void) {
     cputs("your screen may flicker.");
 
     read_config();
-#endif
 
     while(paint_menu >= 0) {
         if(paint_menu == 2) {
             backdrop(PROGNAME);
 
-            window(" Main Menu ", 24, 15, 0);
+            window(" Main Menu ", 26, 15, 0);
             gotoy(y+5); gotox(8);
             repeatchar(CHAR_BORDER_BOTTOM, 24);
             gotoy(y+10); gotox(8);
@@ -1762,5 +1798,11 @@ void main (void) {
                 break;
         }
     }
+
+cleanup:
+    backdrop(PROGNAME);
+    gotoy(12); gotox(13);
+    cputs("Launching Menu");
+
     exec("MENU.SYSTEM", "");
 }

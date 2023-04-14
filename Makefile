@@ -12,7 +12,8 @@ FONT_OBJS = 01.us.une.cf    02.clintonv1.cf 03.reactive.cf  04.danpaymar.cf \
             15.frenchenh.cf 16.frenchune.cf 17.hebrewenh.cf 18.hebrewune.cf \
             19.plus.enh.cf  1a.plus.une.cf  1b.katakana.cf  1c.cyrillic.cf  \
             1d.greek.cf     1e.esperanto.cf 1f.videx.cf     20.plus.une.cf  \
-            21.us.enh.cf    22.us.enh.cf    23.cyrillic.cf  24.pcbold.cf
+            21.us.enh.cf    22.us.enh.cf    23.cyrillic.cf  24.pcbold.cf    \
+            25.aniron.cf
 
 SYSTEM_TARGETS = menu
 BASE_TARGETS = menu config fontmgr
@@ -77,6 +78,12 @@ disks: $(addprefix $(OBJDIR)/,$(addsuffix .po,$(DISK_TARGETS)))
 $(OBJDIR)/%.xf: fonts/00.us.enh.pf fonts/%.pf
 	tools/xorfont US.ENH....00.PF $^ $@
 
+$(OBJDIR)/1a.plus.une.xf: fonts/19.plus.enh.pf fonts/1a.plus.une.pf
+	tools/xorfont PLUS.ENH..19.PF $^ $@
+
+$(OBJDIR)/20.plus.une.xf: fonts/19.plus.enh.pf fonts/20.plus.une.pf
+	tools/xorfont PLUS.ENH..19.PF $^ $@
+
 $(OBJDIR)/%.cf: $(OBJDIR)/%.xf
 	tools/rlefont $< $@
 
@@ -124,7 +131,7 @@ $(OBJDIR)/disk525b.po: $(addprefix $(OBJDIR)/,$(addsuffix .base,$(DISK525B_OBJS)
 	java -jar $(AC) -p   $@ VDRIVE/VSDRIVE         SYS 0x2000  <adtpro/vsdrive
 	java -jar $(AC) -p   $@ VDRIVE/VSDRIVE.LOW     SYS 0x2000  <adtpro/vsdrive.low
 
-$(OBJDIR)/disk525c.po: $(OBJDIR)/menu.system $(addprefix $(OBJDIR)/,$(addsuffix .base,$(DISK525B_OBJS))) $(addprefix $(OBJDIR)/,$(addsuffix .enh,$(DISK525B_OBJS)))
+$(OBJDIR)/disk525c.po: $(OBJDIR)/menu.system fonts $(addprefix $(OBJDIR)/,$(addsuffix .base,$(DISK525C_OBJS))) $(addprefix $(OBJDIR)/,$(addsuffix .enh,$(DISK525C_OBJS)))
 	@cp prodos/pd525.po $@
 	java -jar $(AC) -n   $@ FONTS
 	java -jar $(ACX) mkdir -d=$@ FONTS
@@ -150,7 +157,7 @@ $(OBJDIR)/disk525c.po: $(OBJDIR)/menu.system $(addprefix $(OBJDIR)/,$(addsuffix 
 	java -jar $(AC) -p   $@ FONTMGR.BASE           SYS 0x2000  <$(OBJDIR)/fontmgr.base
 	java -jar $(AC) -p   $@ FONTMGR.ENH            SYS 0x2000  <$(OBJDIR)/fontmgr.enh
 
-$(OBJDIR)/disk525d.po: $(OBJDIR)/menu.system $(addprefix $(OBJDIR)/,$(addsuffix .base,$(DISK525B_OBJS))) $(addprefix $(OBJDIR)/,$(addsuffix .enh,$(DISK525B_OBJS)))
+$(OBJDIR)/disk525d.po: $(OBJDIR)/menu.system fonts $(addprefix $(OBJDIR)/,$(addsuffix .base,$(DISK525D_OBJS))) $(addprefix $(OBJDIR)/,$(addsuffix .enh,$(DISK525D_OBJS)))
 	@cp prodos/pd525.po $@
 	java -jar $(AC) -n   $@ FONTS
 	java -jar $(ACX) mkdir -d=$@ FONTS
@@ -165,17 +172,19 @@ $(OBJDIR)/disk525d.po: $(OBJDIR)/menu.system $(addprefix $(OBJDIR)/,$(addsuffix 
 	java -jar $(AC) -p   $@ FONTS/HEBREWENH.17.CF  BIN 0xCF27  <$(OBJDIR)/17.hebrewenh.cf
 	java -jar $(AC) -p   $@ FONTS/HEBREWUNE.18.CF  BIN 0xCF27  <$(OBJDIR)/18.hebrewune.cf
 	java -jar $(AC) -p   $@ FONTS/PLUS.ENH..19.PF  BIN 0xF027  <fonts/19.plus.enh.pf
-	java -jar $(AC) -p   $@ FONTS/PLUS.UNE..1A.PF  BIN 0xF027  <fonts/1a.plus.une.pf
+	java -jar $(AC) -p   $@ FONTS/PLUS.UNE..1A.CF  BIN 0xCF27  <$(OBJDIR)/1a.plus.une.cf
 	java -jar $(AC) -p   $@ FONTS/KATAKANA..1B.PF  BIN 0xF027  <fonts/1b.katakana.pf
 	java -jar $(AC) -p   $@ FONTS/CYRILLIC..1C.CF  BIN 0xCF27  <$(OBJDIR)/1c.cyrillic.cf
 	java -jar $(AC) -p   $@ FONTS/GREEK.....1D.CF  BIN 0xCF27  <$(OBJDIR)/1d.greek.cf
 	java -jar $(AC) -p   $@ FONTS/ESPERANTO.1E.CF  BIN 0xCF27  <$(OBJDIR)/1e.esperanto.cf
 	java -jar $(AC) -p   $@ FONTS/VIDEX.....1F.CF  BIN 0xCF27  <$(OBJDIR)/1f.videx.cf
-	java -jar $(AC) -p   $@ FONTS/PLUS.UNE..20.PF  BIN 0xF027  <fonts/20.plus.une.pf
+	java -jar $(AC) -p   $@ FONTS/PLUS.UNE..20.CF  BIN 0xCF27  <$(OBJDIR)/20.plus.une.cf
 	java -jar $(AC) -p   $@ FONTS/US.ENH....21.CF  BIN 0xCF27  <$(OBJDIR)/21.us.enh.cf
 	java -jar $(AC) -p   $@ FONTS/US.ENH....22.CF  BIN 0xCF27  <$(OBJDIR)/22.us.enh.cf
 	java -jar $(AC) -p   $@ FONTS/CYRILLIC..23.CF  BIN 0xCF27  <$(OBJDIR)/23.cyrillic.cf
 	java -jar $(AC) -p   $@ FONTS/PCBOLD....24.CF  BIN 0xCF27  <$(OBJDIR)/24.pcbold.cf
+	java -jar $(AC) -p   $@ FONTS/ANIRON....25.CF  BIN 0xCF27  <$(OBJDIR)/25.aniron.cf
+	java -jar $(AC) -p   $@ FONTS/ANIRON....25.PF  BIN 0xF027  <fonts/25.aniron.pf
 	java -jar $(AC) -p   $@ MENU.SYSTEM            SYS 0x2000  <$(OBJDIR)/menu.system
 	java -jar $(AC) -p   $@ MENU.BASE              SYS 0x2000  <$(OBJDIR)/menu.base
 	java -jar $(AC) -p   $@ MENU.ENH               SYS 0x2000  <$(OBJDIR)/menu.enh
@@ -228,17 +237,19 @@ $(OBJDIR)/disk35.po: $(OBJDIR)/menu.system $(addprefix $(OBJDIR)/,$(addsuffix .b
 	java -jar $(AC) -p   $@ FONTS/HEBREWENH.17.CF  BIN 0xCF27  <$(OBJDIR)/17.hebrewenh.cf
 	java -jar $(AC) -p   $@ FONTS/HEBREWUNE.18.CF  BIN 0xCF27  <$(OBJDIR)/18.hebrewune.cf
 	java -jar $(AC) -p   $@ FONTS/PLUS.ENH..19.PF  BIN 0xF027  <fonts/19.plus.enh.pf
-	java -jar $(AC) -p   $@ FONTS/PLUS.UNE..1A.PF  BIN 0xF027  <fonts/1a.plus.une.pf
+	java -jar $(AC) -p   $@ FONTS/PLUS.UNE..1A.CF  BIN 0xCF27  <$(OBJDIR)/1a.plus.une.cf
 	java -jar $(AC) -p   $@ FONTS/KATAKANA..1B.PF  BIN 0xF027  <fonts/1b.katakana.pf
 	java -jar $(AC) -p   $@ FONTS/CYRILLIC..1C.CF  BIN 0xCF27  <$(OBJDIR)/1c.cyrillic.cf
 	java -jar $(AC) -p   $@ FONTS/GREEK.....1D.CF  BIN 0xCF27  <$(OBJDIR)/1d.greek.cf
 	java -jar $(AC) -p   $@ FONTS/ESPERANTO.1E.CF  BIN 0xCF27  <$(OBJDIR)/1e.esperanto.cf
 	java -jar $(AC) -p   $@ FONTS/VIDEX.....1F.CF  BIN 0xCF27  <$(OBJDIR)/1f.videx.cf
-	java -jar $(AC) -p   $@ FONTS/PLUS.UNE..20.PF  BIN 0xCF27  <fonts/20.plus.une.pf
+	java -jar $(AC) -p   $@ FONTS/PLUS.UNE..20.CF  BIN 0xCF27  <$(OBJDIR)/20.plus.une.cf
 	java -jar $(AC) -p   $@ FONTS/US.ENH....21.CF  BIN 0xCF27  <$(OBJDIR)/21.us.enh.cf
 	java -jar $(AC) -p   $@ FONTS/US.ENH....22.CF  BIN 0xCF27  <$(OBJDIR)/22.us.enh.cf
 	java -jar $(AC) -p   $@ FONTS/CYRILLIC..23.CF  BIN 0xCF27  <$(OBJDIR)/23.cyrillic.cf
 	java -jar $(AC) -p   $@ FONTS/PCBOLD....24.CF  BIN 0xCF27  <$(OBJDIR)/24.pcbold.cf
+	java -jar $(AC) -p   $@ FONTS/ANIRON....25.CF  BIN 0xCF27  <$(OBJDIR)/25.aniron.cf
+	java -jar $(AC) -p   $@ FONTS/ANIRON....25.PF  BIN 0xF027  <fonts/25.aniron.pf
 	java -jar $(AC) -p   $@ MENU.BASE              SYS 0x2000  <$(OBJDIR)/menu.base
 	java -jar $(AC) -p   $@ MENU.ENH               SYS 0x2000  <$(OBJDIR)/menu.enh
 	java -jar $(AC) -p   $@ CONFIG.BASE            SYS 0x2000  <$(OBJDIR)/config.base
