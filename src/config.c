@@ -737,13 +737,16 @@ void restore_config() {
         backdrop(PROGNAME);
         window(" Error ", 28, 7, 1);
         gotoy(11); gotox(7);
-        cprintf("Unable to erase block $%4X", block);
+        cprintf("Unable to erase block $%4X", last);
         ok_button();
 
         goto cleanup;
     }
 
     cfgfile_upload("CONFIG.BACKUP", next);
+
+cleanup:
+    return;
 }
 
 void backup_config() {
@@ -771,7 +774,7 @@ cleanup:
 
 void read_config() {
     int i;
-    uint16_t next, last;
+    uint16_t last;
 
     backdrop(PROGNAME);
     window(" Please Wait ", 26, 6, 1);
