@@ -11,7 +11,7 @@ void main (void) {
 
     strcpy(filename, NEXTNAME);
 
-    if(get_ostype() >= 0x30) {
+    if(get_ostype() >= 0x31) {
         strcat(filename, ".ENH");
     } else {
         strcat(filename, ".BASE");
