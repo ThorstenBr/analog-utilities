@@ -144,6 +144,7 @@ void main (void) {
                     }
 #if defined(__APPLE2ENH__)
                 }
+#endif
             case MENU_EXIT:
                 launcher_rows+=2;
                 last_item = i;
@@ -155,7 +156,6 @@ void main (void) {
                     separator_allowed = 0;
                 }
                 break;
-#endif
         }
     }
  
