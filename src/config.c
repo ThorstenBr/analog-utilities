@@ -1711,10 +1711,10 @@ void main (void) {
             backdrop(PROGNAME);
 
             window(" Main Menu ", 26, 15, 0);
-            gotoy(y+5); gotox(8);
-            repeatchar(CHAR_BORDER_BOTTOM, 24);
-            gotoy(y+10); gotox(8);
-            repeatchar(CHAR_BORDER_BOTTOM, 24);
+            gotoy(y+4); gotox(7);
+            repeatchar(CHAR_SEPARATOR, 26);
+            gotoy(y+9); gotox(7);
+            repeatchar(CHAR_SEPARATOR, 26);
         }
         if(paint_menu) {
             gotoy(y+0); gotox(8);

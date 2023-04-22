@@ -186,8 +186,8 @@ void main (void) {
                         break;
                     case MENU_SEPARATOR:
                         if(separator_allowed) {
-                            gotoy(window_top+y); gotox(8);
-                            repeatchar(CHAR_BORDER_BOTTOM, 24);
+                            gotoy(window_top+y-1); gotox(8);
+                            repeatchar(CHAR_SEPARATOR, 24);
                             y++;
                             separator_allowed = 0;
                         }

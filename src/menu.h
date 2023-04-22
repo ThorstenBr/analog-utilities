@@ -3,6 +3,7 @@
 
 #if defined(__APPLE2ENH__)
  #define CHAR_CURSOR              0x7F
+ #define CHAR_SEPARATOR           '_'
  #define CHAR_BAR_MIDDLE          0xD3
  #define CHAR_BORDER_BOTTOM       0xCC
  #define CHAR_TITLEBAR_ENCLOSED   0xDC
@@ -22,6 +23,7 @@
  #define CHAR_BORDER_BOTTOM_RIGHT ' '
 #else
  #define CHAR_CURSOR              (' '|0x80)
+ #define CHAR_SEPARATOR           '_'
  #define CHAR_BAR_MIDDLE          '-'
  #define CHAR_BORDER_BOTTOM       '-'
  #define CHAR_TITLEBAR_ENCLOSED   '-'
