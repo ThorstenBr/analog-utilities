@@ -335,6 +335,13 @@ int prompt_slot(char *progname) {
     int c;
     int done=0;
 
+    // Attempt to find the lowest numbered V2 Analog Card
+    for(c = 7; c > 0; c--) {
+        if(!memcmp("V2A", (uint8_t *)(0xC0F8 + (c << 8)), 3)) {
+            cardslot = c;
+        }
+    }
+
     backdrop(progname);
 
     window(" Slot Number? ", 38, 7, 1);
