@@ -44,6 +44,24 @@ uint8_t terminal_fgcolor = 0xF;
 uint8_t terminal_bgcolor = 0x0;
 uint8_t terminal_border = 0x0;
 
+uint16_t default_gs_palette[16] = {
+    0x0000, 0x0606, 0x000a, 0x0a2f,
+    0x0040, 0x0444, 0x008f, 0x066f,
+    0x0220, 0x0f40, 0x0888, 0x0f6f,
+    0x00c2, 0x0cc0, 0x09fa, 0x0fff
+};
+
+uint16_t default_lc_palette[16] = {
+    0x0000, 0x00c3, 0x0005, 0x14f,
+    0x0010, 0x0092, 0x0027, 0x0df,
+    0x0048, 0x01d0, 0x0124, 0x1e7,
+    0x0031, 0x01b0, 0x013d, 0x1ff
+};
+
+uint16_t rgbpalette[16];
+uint8_t video7_enabled = 0;
+uint8_t jumpers = 0;
+uint8_t hardware_type = 0x00;
 uint8_t config_rev = 0x00;
 
 typedef struct menu_strings_s {
@@ -269,9 +287,9 @@ void print_menu_select_str(char *str1, char *str2, int width, int highlighted, i
     revers(0);
 }
 
-int list_menu(char *screen_title, char *window_title, menu_strings_t *menu_str, int max_item, int current_item) {
+int list_menu(char *screen_title, char *window_title, menu_strings_t *menu_str, int max_item, int current_item, int default_item) {
     int paint_menu = 2;
-    int selected_item = (current_item > max_item) ? 0 : current_item;
+    int selected_item = ((current_item > max_item) || (current_item < 0)) ? 0 : current_item;
     int y;
     int top = -1;
     int i;
@@ -289,7 +307,7 @@ int list_menu(char *screen_title, char *window_title, menu_strings_t *menu_str, 
         if(paint_menu > 0) {
             for(i = 0; i < longmin((max_item-top)+1, 10); i++) {
                 gotoy(y+i); gotox(8);
-                print_menu_select(menu_str[i+top].str, 24, (selected_item == i+top), (current_item == i+top));
+                print_menu_select(menu_str[i+top].str, 24, (selected_item == i+top), (current_item == default_item) && (current_item == i+top));
             }
             if(max_item > 9) while(i < 10) {
                 gotoy(y+i); gotox(8);
@@ -320,7 +338,7 @@ int list_menu(char *screen_title, char *window_title, menu_strings_t *menu_str, 
         }
     }
 
-    return current_item;
+    return default_item;
 }
 
 void default_config() {
@@ -339,6 +357,11 @@ void default_config() {
     strcpy(jd_host, "192.168.0.1");
     jd_port = 9100;
     machine = MACHINE_AUTO;
+    
+    hardware_type = 'L';
+    jumpers = 0;
+
+    memcpy(rgbpalette, default_lc_palette, sizeof(rgbpalette));
 }
 
 int parse_config() {
@@ -441,6 +464,12 @@ int parse_config() {
         case CFGTOKEN_BORDER:
             terminal_border = (ptr[i] >> 16) & 0xF;
             break;
+        case CFGTOKEN_VIDEO7:
+            video7_enabled = (ptr[i] >> 16) & 0x1;
+            break;
+        case CFGTOKEN_RGBCOLOR:
+            rgbpalette[(ptr[i] >> 16) & 0xF] = ptr[i+1];
+            break;
         }
 
         // Advance by the number of dwords for this token
@@ -451,7 +480,7 @@ int parse_config() {
 }
 
 int build_config(uint32_t rev) {
-    int i = 0;
+    int j, i = 0;
     uint32_t *ptr = (uint32_t*)blockbuffer;
 
     memset(blockbuffer, 0xFF, sizeof(blockbuffer));
@@ -467,6 +496,12 @@ int build_config(uint32_t rev) {
     }
     ptr[i++] = CFGTOKEN_TBCOLOR | ((((uint32_t)terminal_fgcolor) & 0xF) << 20) | ((((uint32_t)terminal_bgcolor) & 0xF) << 16);
     ptr[i++] = CFGTOKEN_BORDER | ((((uint32_t)terminal_border) & 0xF) << 16);
+
+    ptr[i++] = CFGTOKEN_VIDEO7 | ((((uint32_t)video7_enabled) & 0x1) << 16);
+    for(j = 0; j < 16; j++) {
+        ptr[i++] = CFGTOKEN_RGBCOLOR | 0x02000000 | (((uint32_t)j) << 16);
+        ptr[i++] = rgbpalette[j];
+    }
 
     switch(machine) {
     default:
@@ -775,6 +810,8 @@ cleanup:
 void read_config() {
     int i;
     uint16_t last;
+    
+    default_config();
 
     backdrop(PROGNAME);
     window(" Please Wait ", 26, 6, 1);
@@ -782,6 +819,52 @@ void read_config() {
     cputs("Reading file,");
     gotoy(12); gotox(8);
     cputs("your screen may flicker.");
+
+    // Get card hardware type
+    if(cfg_cmd0("Ih")) {
+        backdrop(PROGNAME);
+        window(" Error ", 28, 7, 1);
+        gotoy(11); gotox(7);
+        cputs("Unable to get hardware id");
+        ok_button();
+        goto cleanup;
+    }
+    if(RPY_BUFFER[1] != 0x02) {
+        backdrop(PROGNAME);
+        window(" Error ", 28, 7, 1);
+        gotoy(11); gotox(8);
+        cputs("Unknown hardware vendor");
+        ok_button();
+        goto cleanup;
+    }
+    switch(RPY_BUFFER[2]) {
+        case 'G':
+            hardware_type = 'G';
+            memcpy(rgbpalette, default_gs_palette, sizeof(rgbpalette));
+            break;
+        case 'L':
+            hardware_type = 'L';
+            memcpy(rgbpalette, default_lc_palette, sizeof(rgbpalette));
+            break;
+        case 'W':
+            hardware_type = 'W';
+            memcpy(rgbpalette, default_lc_palette, sizeof(rgbpalette));
+            break;
+    }
+    if(hardware_type == 'G') {
+        if(cfg_cmd0("Ij")) {
+            backdrop(PROGNAME);
+            window(" Error ", 28, 7, 1);
+            gotoy(11); gotox(9);
+            cputs("Unable to get jumpers");
+            ok_button();
+            goto cleanup;
+        }
+        jumpers = RPY_BUFFER[1];
+        if(jumpers & 1) {
+                machine = MACHINE_APPLE_IIGS;
+        }
+    }
 
     // Get current config blocks
     if(cfg_cmd0("fc")) {
@@ -962,7 +1045,7 @@ int baud_menu(char *screen_title, int baudrate) {
         }
     }
 
-    selected_item = list_menu(screen_title, " Baud Rate ", baud_strings, (sizeof(baud_strings)/sizeof(menu_strings_t))-1, selected_item);
+    selected_item = list_menu(screen_title, " Baud Rate ", baud_strings, (sizeof(baud_strings)/sizeof(menu_strings_t))-1, selected_item, selected_item);
 
     return baudvalue[selected_item];
 }
@@ -1289,7 +1372,7 @@ uint32_t address_edit(uint32_t ip, int is_netmask) {
     for(;;) {
         if(paint_menu) {
             backdrop("WiFi");
-            window(is_netmask ? "Netmask" : "IP Address", is_netmask ? 20 : 32, 5, 1);
+            window(is_netmask ? " Netmask " : " IP Address ", is_netmask ? 20 : 32, 5, 1);
             if(is_netmask) {
                 gotoy(y+0); gotox(x);
                 cputs("Enter netmask:");
@@ -1366,24 +1449,105 @@ uint32_t address_edit(uint32_t ip, int is_netmask) {
     }
 }
 
+void color_editor(int palette_entry) {
+    int y = 12 - 1;
+    int selected_item = 1;
+    int paint_menu = 2;
+    int maxval = (hardware_type == 'G') ? 15 : 7;
+    int rgb[3];
+
+    rgb[0] = ((hardware_type == 'G') ? ((rgbpalette[palette_entry] >> 8) & 0xf) : ((rgbpalette[palette_entry] >> 6) & 0x7));
+    rgb[1] = ((hardware_type == 'G') ? ((rgbpalette[palette_entry] >> 4) & 0xf) : ((rgbpalette[palette_entry] >> 3) & 0x7));
+    rgb[2] = ((hardware_type == 'G') ? ((rgbpalette[palette_entry] >> 0) & 0xf) : ((rgbpalette[palette_entry] >> 0) & 0x7));
+
+    while(paint_menu >= 0) {
+        if(paint_menu == 2) {
+            backdrop("Palette Editor");
+            window(color_strings[palette_entry].str, 32, 5, 1);
+            gotoy(y+2); gotox(11);
+            cputs("Press [CR] to save");
+        }
+        if(paint_menu) {
+            paint_menu = 0;
+            gotoy(y+0); gotox(10);
+            print_menu_select_int("%1x", rgb[0], 6, (selected_item == 0), 0);
+            gotoy(y+0); gotox(17);
+            print_menu_select_int("%1x", rgb[1], 6, (selected_item == 1), 0);
+            gotoy(y+0); gotox(24);
+            print_menu_select_int("%1x", rgb[2], 6, (selected_item == 2), 0);
+        }
+        switch(cgetc()) {
+            case 0x08:
+                if(selected_item > 0) {
+                    selected_item--;
+                    paint_menu = 1;
+                }
+                break;
+            case 0x15:
+                if(selected_item < 2) {
+                    selected_item++;
+                    paint_menu = 1;
+                }
+                break;
+            case '+':
+            case 0x0B:
+                if(rgb[selected_item] < maxval) {
+                    rgb[selected_item]++;
+                    paint_menu = 1;
+                }
+                break;
+            case '-':
+            case 0x0A:
+                if(rgb[selected_item] > 0) {
+                    rgb[selected_item]--;
+                    paint_menu = 1;
+                }
+                break;
+            case 0x0D:
+                if(hardware_type == 'G') {
+                    rgbpalette[palette_entry] = ((rgb[0] & 0xf) << 8) | ((rgb[1] & 0xf) << 4) | ((rgb[2] & 0xf) << 0);
+                } else {
+                    rgbpalette[palette_entry] = ((rgb[0] & 0x7) << 6) | ((rgb[1] & 0x7) << 3) | ((rgb[2] & 0x7) << 0);
+                }
+                paint_menu = -1;
+                break;
+            case 0x1B:
+                paint_menu = -1;
+        }
+    }
+}
+
 int video_menu_action(int action) {
+    int edit_color = -1;
     switch(action) {
         case 0:
-            default_font = list_menu("Video Settings", "Default Font", font_strings, (sizeof(font_strings)/sizeof(menu_strings_t))-1, default_font);
+            default_font = list_menu("Video Settings", " Default Font ", font_strings, (sizeof(font_strings)/sizeof(menu_strings_t))-1, default_font, default_font);
             return 2;
         case 1:
-            mono_palette = list_menu("Video Settings", "Monochrome Mode", monochrome_strings, (sizeof(monochrome_strings)/sizeof(menu_strings_t))-1, mono_palette);
+            mono_palette = list_menu("Video Settings", " Monochrome Mode ", monochrome_strings, (sizeof(monochrome_strings)/sizeof(menu_strings_t))-1, mono_palette, mono_palette);
             return 2;
         case 2:
-            terminal_fgcolor = list_menu("Video Settings", "Foreground Color", color_strings, (sizeof(color_strings)/sizeof(menu_strings_t))-1, terminal_fgcolor);
+            terminal_fgcolor = list_menu("Video Settings", " Foreground Color ", color_strings, (sizeof(color_strings)/sizeof(menu_strings_t))-1, terminal_fgcolor, terminal_fgcolor);
             return 2;
         case 3:
-            terminal_bgcolor = list_menu("Video Settings", "Background Color", color_strings, (sizeof(color_strings)/sizeof(menu_strings_t))-1, terminal_bgcolor);
+            terminal_bgcolor = list_menu("Video Settings", " Background Color ", color_strings, (sizeof(color_strings)/sizeof(menu_strings_t))-1, terminal_bgcolor, terminal_bgcolor);
             return 2;
         case 4:
-            terminal_border = list_menu("Video Settings", "Border Color", color_strings, (sizeof(color_strings)/sizeof(menu_strings_t))-1, terminal_border);
+            terminal_border = list_menu("Video Settings", " Border Color ", color_strings, (sizeof(color_strings)/sizeof(menu_strings_t))-1, terminal_border, terminal_border);
             return 2;
         case 5:
+            video7_enabled = !video7_enabled;
+            return 1;
+        case 6:
+            edit_color = 0;
+            do {
+                edit_color = list_menu("Video Settings", " Edit Palette ", color_strings, (sizeof(color_strings)/sizeof(menu_strings_t))-1, edit_color, -1);
+                if(edit_color >= 0) {
+                    color_editor(edit_color);
+                }
+            } while(edit_color != -1);
+            return 2;
+        case 7:
             return -1;
     }
 }
@@ -1409,9 +1573,13 @@ void video_menu(void) {
             print_menu_select_str("Background: %8s", color_strings[terminal_bgcolor].str, 24, (selected_item == 3), 0);
             gotoy(y+8); gotox(8);
             print_menu_select_str("Border: %12s", color_strings[terminal_border & 0xf].str, 24, (selected_item == 4), 0);
+            gotoy(y+10); gotox(8);
+            print_menu_select_str("Video 7:    %8s", video7_enabled ? " Enabled" : "Disabled", 24, (selected_item == 5), 0);
+            gotoy(y+12); gotox(8);
+            print_menu_select("Edit Palette", 24, (selected_item == 6), 0);
 
             gotoy(y+14); gotox(8);
-            print_menu_select(" Back to Main Menu", 24, (selected_item == 5), 0);
+            print_menu_select("Back to Main Menu", 24, (selected_item == 7), 0);
 
             paint_menu = 0;
         }
@@ -1425,7 +1593,7 @@ void video_menu(void) {
                 break;
             case 0x15:
             case 0x0A:
-                if(selected_item < 5) {
+                if(selected_item < 7) {
                     selected_item++;
                     paint_menu = 1;
                 }
@@ -1544,13 +1712,13 @@ void wifi_menu(void) {
 int io_menu_action(int action) {
     switch(action) {
         case 0:
-            serialmux[0] = list_menu("Serial Port 0", " Port Mux ", serialmux_strings, (sizeof(serialmux_strings)/sizeof(menu_strings_t))-1, serialmux[0]);
+            serialmux[0] = list_menu("Serial Port 0", " Port Mux ", serialmux_strings, (sizeof(serialmux_strings)/sizeof(menu_strings_t))-1, serialmux[0], serialmux[0]);
             return 2;
         case 1:
             baud[0] = baud_menu("Serial Port 0", baud[0]);
             return 2;
         case 2:
-            serialmux[1] = list_menu("Serial Port 1", " Port Mux ", serialmux_strings, (sizeof(serialmux_strings)/sizeof(menu_strings_t))-1, serialmux[1]);
+            serialmux[1] = list_menu("Serial Port 1", " Port Mux ", serialmux_strings, (sizeof(serialmux_strings)/sizeof(menu_strings_t))-1, serialmux[1], serialmux[1]);
             return 2;
         case 3:
             baud[1] = baud_menu("Serial Port 1", baud[1]);
@@ -1630,16 +1798,16 @@ void io_menu(void) {
 int main_menu_action(int action) {
     switch(action) {
         case 0:
-            machine = list_menu(PROGNAME, " Host Type ", machine_strings, (sizeof(machine_strings)/sizeof(menu_strings_t))-1, machine);
+            machine = list_menu(PROGNAME, " Host Type ", machine_strings, (sizeof(machine_strings)/sizeof(menu_strings_t))-1, machine, machine);
             return 2;
         case 1:
             video_menu();
             return 2;
         case 2:
-            wifi_menu();
+            io_menu();
             return 2;
         case 3:
-            io_menu();
+            wifi_menu();
             return 2;
         case 4:
             backup_config();
@@ -1697,13 +1865,6 @@ void main (void) {
             break;
     }
 
-    backdrop(PROGNAME);
-    window(" Please Wait ", 26, 6, 1);
-    gotoy(11); gotox(9);
-    cputs("Reading configuration,");
-    gotoy(12); gotox(8);
-    cputs("your screen may flicker.");
-
     read_config();
 
     while(paint_menu >= 0) {
@@ -1726,9 +1887,9 @@ void main (void) {
             gotoy(y+1); gotox(8);
             print_menu_select("Video Settings", 24, (selected_item == 1), 0);
             gotoy(y+2); gotox(8);
-            print_menu_select("WiFi Settings", 24, (selected_item == 2), 0);
+            print_menu_select("I/O Settings", 24, (selected_item == 2), 0);
             gotoy(y+3); gotox(8);
-            print_menu_select("I/O Settings", 24, (selected_item == 3), 0);
+            print_menu_select("WiFi Settings", 24, (selected_item == 3), 0);
 
             gotoy(y+6); gotox(8);
             print_menu_select("Backup config file", 24, (selected_item == 4), 0);
