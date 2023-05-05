@@ -1019,15 +1019,15 @@ int format_card(void) {
 
             goto cleanup;
         }
-        if(cfg_cmd1("fe", next)) {
-            backdrop(PROGNAME);
-            window(" Error ", 28, 7, 1);
-            gotoy(11); gotox(8);
-            cprintf("Unable to erase block $%04X", next);
-            ok_button();
+    }
+    if(cfg_cmd1("fe", next)) {
+        backdrop(PROGNAME);
+        window(" Error ", 28, 7, 1);
+        gotoy(11); gotox(8);
+        cprintf("Unable to erase block $%04X", next);
+        ok_button();
 
-            goto cleanup;
-        }
+        goto cleanup;
     }
 
     return 1;
@@ -1460,6 +1460,10 @@ void color_editor(int palette_entry) {
     rgb[1] = ((hardware_type == 'G') ? ((rgbpalette[palette_entry] >> 4) & 0xf) : ((rgbpalette[palette_entry] >> 3) & 0x7));
     rgb[2] = ((hardware_type == 'G') ? ((rgbpalette[palette_entry] >> 0) & 0xf) : ((rgbpalette[palette_entry] >> 0) & 0x7));
 
+    VGA_TBCOLOR = 0xF0;
+    VGA_BORDER = palette_entry;
+    VGA_MONOMODE = 0xF0;
+
     while(paint_menu >= 0) {
         if(paint_menu == 2) {
             backdrop("Palette Editor");
@@ -1493,6 +1497,8 @@ void color_editor(int palette_entry) {
             case 0x0B:
                 if(rgb[selected_item] < maxval) {
                     rgb[selected_item]++;
+                    CARD_REGISTER(0xC) = (palette_entry << 4) | (selected_item+1);
+                    CARD_REGISTER(0xD) = rgb[selected_item];
                     paint_menu = 1;
                 }
                 break;
@@ -1500,6 +1506,8 @@ void color_editor(int palette_entry) {
             case 0x0A:
                 if(rgb[selected_item] > 0) {
                     rgb[selected_item]--;
+                    CARD_REGISTER(0xC) = (palette_entry << 4) | (selected_item+1);
+                    CARD_REGISTER(0xD) = rgb[selected_item];
                     paint_menu = 1;
                 }
                 break;
@@ -1515,6 +1523,10 @@ void color_editor(int palette_entry) {
                 paint_menu = -1;
         }
     }
+
+    VGA_TBCOLOR = (terminal_fgcolor << 4) | terminal_bgcolor;
+    VGA_BORDER = terminal_border;
+    VGA_MONOMODE = (mono_palette << 4);
 }
 
 int video_menu_action(int action) {
@@ -1835,6 +1847,7 @@ int main_menu_action(int action) {
             backdrop(PROGNAME);
             if(confirm(" Are you sure? ", "Save and exit?")) {
                 write_config();
+                cfg_cmd0("Rb");
                 clrscr();
                 exec("MENU.SYSTEM", "");
                 return -1;
@@ -1944,8 +1957,8 @@ void main (void) {
             case 'r':
                 paint_menu = main_menu_action(selected_item = 5);
                 break;
-            case 'F':
-            case 'f':
+            case 'E':
+            case 'e':
                 paint_menu = main_menu_action(selected_item = 6);
                 break;
             case 0x1B:
