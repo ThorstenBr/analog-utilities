@@ -980,7 +980,7 @@ void apply_config(void) {
     cputs("your screen may flicker.");
 
     // Ask card to reboot.
-    cfg_cmd0("RB");
+    cfg_cmd0("Rb");
 
     while(timeout--);
 }
