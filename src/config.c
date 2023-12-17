@@ -138,6 +138,7 @@ menu_strings_t font_strings[40] = {
     { "26: Custom          " },
     { "27: Custom          " },
 };
+#define FONT_COUNT (sizeof(font_strings)/sizeof(menu_strings_t))
 
 menu_strings_t monochrome_strings[9] = {
     { "Disabled" },
@@ -451,7 +452,9 @@ int parse_config() {
             jd_port = ptr[i+1];
             break;
         case CFGTOKEN_FONT_00:
-            default_font = (ptr[i] >> 16) & 0x2F;
+            default_font = (ptr[i] >> 16) & 0x3F;
+            if (default_font >= FONT_COUNT)
+	            default_font = 0;
             break;
         case CFGTOKEN_MONO_00:
             mono_palette = (ptr[i] >> 20) & 0xF;
@@ -488,7 +491,9 @@ int build_config(uint32_t rev) {
     ptr[i++] = NEWCONFIG_MAGIC;
     ptr[i++] = CFGTOKEN_REVISION | ((rev & 0xff) << 16);
 
-    ptr[i++] = CFGTOKEN_FONT_00 | ((((uint32_t)default_font) & 0x2F) << 20);
+    if (default_font >= FONT_COUNT)
+	    default_font = 0;
+    ptr[i++] = CFGTOKEN_FONT_00 | ((((uint32_t)default_font) & 0x3F) << 16);
     if(mono_palette) {
         ptr[i++] = CFGTOKEN_MONO_80 | ((((uint32_t)mono_palette-1) & 0xF) << 20);
     } else {
@@ -1533,7 +1538,7 @@ int video_menu_action(int action) {
     int edit_color = -1;
     switch(action) {
         case 0:
-            default_font = list_menu("Video Settings", " Default Font ", font_strings, (sizeof(font_strings)/sizeof(menu_strings_t))-1, default_font, default_font);
+            default_font = list_menu("Video Settings", " Default Font ", font_strings, FONT_COUNT-1, default_font, default_font);
             return 2;
         case 1:
             mono_palette = list_menu("Video Settings", " Monochrome Mode ", monochrome_strings, (sizeof(monochrome_strings)/sizeof(menu_strings_t))-1, mono_palette, mono_palette);
