@@ -60,7 +60,7 @@ uint16_t default_lc_palette[16] = {
 };
 
 uint16_t rgbpalette[16];
-uint8_t video7_enabled = 0;
+uint8_t video7_enabled = 1;
 uint8_t jumpers = 0;
 uint8_t hardware_type = 0x00;
 uint8_t config_rev = 0x00;
