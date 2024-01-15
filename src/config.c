@@ -548,7 +548,7 @@ int build_config(uint32_t rev) {
 	    default_font = 0;
     ptr[i++] = CFGTOKEN_FONT_00 | ((((uint32_t)default_font) & 0x3F) << 16);
     if(mono_palette) {
-        ptr[i++] = CFGTOKEN_MONO_80 | ((((uint32_t)mono_palette-1) & 0xF) << 20);
+        ptr[i++] = CFGTOKEN_MONO_80 | ((((uint32_t)mono_palette-1) & 0x7) << 20);
     } else {
         ptr[i++] = CFGTOKEN_MONO_00;
     }
