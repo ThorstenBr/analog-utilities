@@ -33,7 +33,8 @@ uint32_t wifi_netmask = 0xFFFFFF00;
 char jd_host[32] = "192.168.0.1";
 uint16_t jd_port = 9100;
 
-uint8_t blockbuffer[4096];
+#define MAX_CFG_SIZE 1024
+uint8_t blockbuffer[MAX_CFG_SIZE];
 
 #define CARD_TIMEOUT 0x3fff
 uint16_t timeout = CARD_TIMEOUT;
@@ -196,6 +197,58 @@ void ok_button(void) {
             return;
         }
     }
+}
+
+void error_window()
+{
+    backdrop(PROGNAME);
+    window(" Error ", 28, 7, 1);
+    gotoy(11); gotox(7);
+}
+
+uint8_t cfg_erase(uint16_t block)
+{
+    if(cfg_cmd1("fe", block)) {
+        error_window();
+        gotox(8);
+        cprintf("Unable to erase block $%04X", block);
+        ok_button();
+        return 1;
+    }
+    return 0;
+}
+
+uint8_t cfg_update(uint16_t next)
+{
+    int cfg,i;
+    for (cfg=0;cfg<=1;cfg++)
+    {
+		if(cfg_erase(next+cfg)) {
+		    return 0;
+		}
+
+		CF_PTRL = 0;
+		CF_PTRH = 0;
+		for(i = 0; i < 4096; i++) {
+			if (i<sizeof(blockbuffer))
+				CF_DATW = blockbuffer[i];
+			else
+				CF_DATW = 0xff;
+		}
+
+		if(cfg_cmd1("fw", next+cfg)) {
+		    ok_button();
+
+		    backdrop(PROGNAME);
+		    window(" Error ", 32, 7, 1);
+		    gotoy(11); gotox(6);
+		    cprintf("Unable to write block $%04X", next+cfg);
+		    ok_button();
+
+		    return 0;
+		}
+	}
+	return 1;
 }
 
 void print_menu_select(char *str, int width, int highlighted, int selected) {
@@ -620,7 +673,6 @@ int build_config(uint32_t rev) {
 void cfgfile_upload(char *pdfile, uint16_t block) {
     FILE *f;
     size_t bytesread;
-    int i;
 
     backdrop(PROGNAME);
     window(" Please Wait ", 26, 6, 1);
@@ -642,8 +694,8 @@ void cfgfile_upload(char *pdfile, uint16_t block) {
         return;
     }
 
-    memset(blockbuffer, 0xff, 4096);
-    bytesread = fread(blockbuffer, 1, 4096, f);
+    memset(blockbuffer, 0xff, sizeof(blockbuffer));
+    bytesread = fread(blockbuffer, 1, sizeof(blockbuffer), f);
     if(bytesread == 0) {
         backdrop(PROGNAME);
         window(" Error ", longmax(28, strlen(pdfile)+2), 7, 1);
@@ -656,33 +708,9 @@ void cfgfile_upload(char *pdfile, uint16_t block) {
         goto cleanup;
     }
 
-    if(cfg_cmd1("fe", block)) {
-        backdrop(PROGNAME);
-        window(" Error ", 28, 7, 1);
-        gotoy(11); gotox(7);
-        cprintf("Unable to erase block $%4X", block);
-        ok_button();
-
-        goto cleanup;
-    }
-
-    CF_PTRL = 0;
-    CF_PTRH = 0;
-    for(i = 0; i < sizeof(blockbuffer); i++) {
-        CF_DATW = blockbuffer[i];
-    }
-
-    if(cfg_cmd1("fw", block)) {
-        ok_button();
-
-        backdrop(PROGNAME);
-        window(" Error ", 28, 7, 1);
-        gotoy(11); gotox(7);
-        cprintf("Unable to write block $%4X", block);
-        ok_button();
-
-        goto cleanup;
-    }
+    parse_config();
+    if (0 == cfg_update(block))
+	    goto cleanup;
 
 cleanup:
     if(f != NULL)
@@ -717,9 +745,7 @@ void cfgfile_download(char *pdfile, uint16_t block) {
     if(cfg_cmd1("fr", block)) {
         ok_button();
 
-        backdrop(PROGNAME);
-        window(" Error ", 28, 7, 1);
-        gotoy(11); gotox(7);
+        error_window();
         cprintf("Unable to read block $%4X", block);
         ok_button();
 
@@ -757,9 +783,7 @@ void restore_config() {
 
     // Get current config blocks
     if(cfg_cmd0("fc")) {
-        backdrop(PROGNAME);
-        window(" Error ", 28, 7, 1);
-        gotoy(11); gotox(7);
+        error_window();
         cputs("Unable to get config block");
         ok_button();
         return;
@@ -773,16 +797,6 @@ void restore_config() {
     last <<= 8;
     last |= RPY_BUFFER[2];
 
-    if(cfg_cmd1("fe", last)) {
-        backdrop(PROGNAME);
-        window(" Error ", 28, 7, 1);
-        gotoy(11); gotox(7);
-        cprintf("Unable to erase block $%4X", last);
-        ok_button();
-
-        goto cleanup;
-    }
-
     cfgfile_upload("CONFIG.BACKUP", next);
 
 cleanup:
@@ -794,9 +808,7 @@ void backup_config() {
 
     // Get current config blocks
     if(cfg_cmd0("fc")) {
-        backdrop(PROGNAME);
-        window(" Error ", 28, 7, 1);
-        gotoy(11); gotox(7);
+        error_window();
         cputs("Unable to get config block");
         ok_button();
         goto cleanup;
@@ -827,17 +839,14 @@ void read_config() {
 
     // Get card hardware type
     if(cfg_cmd0("Ih")) {
-        backdrop(PROGNAME);
-        window(" Error ", 28, 7, 1);
-        gotoy(11); gotox(7);
+        error_window();
         cputs("Unable to get hardware id");
         ok_button();
         goto cleanup;
     }
     if(RPY_BUFFER[1] != 0x02) {
-        backdrop(PROGNAME);
-        window(" Error ", 28, 7, 1);
-        gotoy(11); gotox(8);
+        error_window();
+        gotox(8);
         cputs("Unknown hardware vendor");
         ok_button();
         goto cleanup;
@@ -858,9 +867,8 @@ void read_config() {
     }
     if(hardware_type == 'G') {
         if(cfg_cmd0("Ij")) {
-            backdrop(PROGNAME);
-            window(" Error ", 28, 7, 1);
-            gotoy(11); gotox(9);
+            error_window();
+            gotox(9);
             cputs("Unable to get jumpers");
             ok_button();
             goto cleanup;
@@ -873,9 +881,7 @@ void read_config() {
 
     // Get current config blocks
     if(cfg_cmd0("fc")) {
-        backdrop(PROGNAME);
-        window(" Error ", 28, 7, 1);
-        gotoy(11); gotox(7);
+        error_window();
         cputs("Unable to get config block");
         ok_button();
         goto cleanup;
@@ -908,7 +914,6 @@ cleanup:
 }
 
 int write_config() {
-    int i;
     uint16_t next;
 
     build_config(config_rev+1);
@@ -922,45 +927,18 @@ int write_config() {
 
     // Get current config blocks
     if(cfg_cmd0("fc")) {
-        backdrop(PROGNAME);
-        window(" Error ", 28, 7, 1);
-        gotoy(11); gotox(7);
+        error_window();
         cputs("Unable to get config block");
         ok_button();
         goto cleanup;
     }
-    
-    next = RPY_BUFFER[5];
-    next <<= 8;
-    next |= RPY_BUFFER[4];
 
-    if(cfg_cmd1("fe", next)) {
-        backdrop(PROGNAME);
-        window(" Error ", 32, 7, 1);
-        gotoy(11); gotox(6);
-        cprintf("Unable to erase block $%4X", next);
-        ok_button();
+	next = RPY_BUFFER[5];
+	next <<= 8;
+	next |= RPY_BUFFER[4];
 
-        goto cleanup;
-    }
-
-    CF_PTRL = 0;
-    CF_PTRH = 0;
-    for(i = 0; i < sizeof(blockbuffer); i++) {
-        CF_DATW = blockbuffer[i];
-    }
-
-    if(cfg_cmd1("fw", next)) {
-        ok_button();
-
-        backdrop(PROGNAME);
-        window(" Error ", 32, 7, 1);
-        gotoy(11); gotox(6);
-        cprintf("Unable to write block $%04X", next);
-        ok_button();
-
-        goto cleanup;
-    }
+    if (0 == cfg_update(next))
+	    goto cleanup;
     return 1;
 
 cleanup:
@@ -997,9 +975,8 @@ int format_card(void) {
 
     // Get current config blocks
     if(cfg_cmd0("fc")) {
-        backdrop(PROGNAME);
-        window(" Error ", 28, 7, 1);
-        gotoy(11); gotox(8);
+        error_window();
+        gotox(8);
         cputs("Unable to get config block");
         ok_button();
 
@@ -1015,23 +992,11 @@ int format_card(void) {
     last |= RPY_BUFFER[2];
     
     if(last != next) {
-        if(cfg_cmd1("fe", last)) {
-            backdrop(PROGNAME);
-            window(" Error ", 28, 7, 1);
-            gotoy(11); gotox(8);
-            cprintf("Unable to erase block $%04X", last);
-            ok_button();
-
+        if(cfg_erase(last)) {
             goto cleanup;
         }
     }
-    if(cfg_cmd1("fe", next)) {
-        backdrop(PROGNAME);
-        window(" Error ", 28, 7, 1);
-        gotoy(11); gotox(8);
-        cprintf("Unable to erase block $%04X", next);
-        ok_button();
-
+    if(cfg_erase(next)) {
         goto cleanup;
     }
 
@@ -1831,6 +1796,7 @@ int main_menu_action(int action) {
             return 2;
         case 5:
             restore_config();
+            apply_config();
             return 2;
         case 6:
             backdrop(PROGNAME);
@@ -1852,7 +1818,7 @@ int main_menu_action(int action) {
             backdrop(PROGNAME);
             if(confirm(" Are you sure? ", "Save and exit?")) {
                 write_config();
-                cfg_cmd0("Rb");
+                apply_config();
                 clrscr();
                 exec("MENU.SYSTEM", "");
                 return -1;
