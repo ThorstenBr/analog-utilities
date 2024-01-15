@@ -61,6 +61,7 @@ uint16_t default_lc_palette[16] = {
 
 uint16_t rgbpalette[16];
 uint8_t video7_enabled = 1;
+uint8_t scanlineemu_enabled = 0;
 uint8_t jumpers = 0;
 uint8_t hardware_type = 0x00;
 uint8_t config_rev = 0x00;
@@ -523,6 +524,9 @@ int parse_config() {
         case CFGTOKEN_VIDEO7:
             video7_enabled = (ptr[i] >> 16) & 0x1;
             break;
+        case CFGTOKEN_SCANLINE:
+            scanlineemu_enabled = (ptr[i] >> 16) & 0x1;
+            break;
         case CFGTOKEN_RGBCOLOR:
             rgbpalette[(ptr[i] >> 16) & 0xF] = ptr[i+1];
             break;
@@ -556,6 +560,7 @@ int build_config(uint32_t rev) {
     ptr[i++] = CFGTOKEN_BORDER | ((((uint32_t)terminal_border) & 0xF) << 16);
 
     ptr[i++] = CFGTOKEN_VIDEO7 | ((((uint32_t)video7_enabled) & 0x1) << 16);
+    ptr[i++] = CFGTOKEN_SCANLINE | ((((uint32_t)scanlineemu_enabled) & 0x1) << 16);
     for(j = 0; j < 16; j++) {
         ptr[i++] = CFGTOKEN_RGBCOLOR | 0x02000000 | (((uint32_t)j) << 16);
         ptr[i++] = rgbpalette[j];
@@ -1518,9 +1523,12 @@ int video_menu_action(int action) {
             terminal_border = list_menu("Video Settings", " Border Color ", color_strings, (sizeof(color_strings)/sizeof(menu_strings_t))-1, terminal_border, terminal_border);
             return 2;
         case 5:
-            video7_enabled = !video7_enabled;
+            scanlineemu_enabled = !scanlineemu_enabled;
             return 1;
         case 6:
+            video7_enabled = !video7_enabled;
+            return 1;
+        case 7:
             edit_color = 0;
             do {
                 edit_color = list_menu("Video Settings", " Edit Palette ", color_strings, (sizeof(color_strings)/sizeof(menu_strings_t))-1, edit_color, -1);
@@ -1529,7 +1537,7 @@ int video_menu_action(int action) {
                 }
             } while(edit_color != -1);
             return 2;
-        case 7:
+        case 8:
             return -1;
     }
 }
@@ -1551,17 +1559,19 @@ void video_menu(void) {
             print_menu_select_str("Monochrome: %8s", monochrome_strings[mono_palette].str, 24, (selected_item == 1), 0);
             gotoy(y+4); gotox(8);
             print_menu_select_str("Foreground: %8s", color_strings[terminal_fgcolor].str, 24, (selected_item == 2), 0);
-            gotoy(y+6); gotox(8);
+            gotoy(y+5); gotox(8);
             print_menu_select_str("Background: %8s", color_strings[terminal_bgcolor].str, 24, (selected_item == 3), 0);
-            gotoy(y+8); gotox(8);
+            gotoy(y+6); gotox(8);
             print_menu_select_str("Border: %12s", color_strings[terminal_border & 0xf].str, 24, (selected_item == 4), 0);
+            gotoy(y+ 8); gotox(8);
+            print_menu_select_str("Scan lines: %8s", scanlineemu_enabled ? " Enabled" : "Disabled", 24, (selected_item == 5), 0);
             gotoy(y+10); gotox(8);
-            print_menu_select_str("Video 7:    %8s", video7_enabled ? " Enabled" : "Disabled", 24, (selected_item == 5), 0);
+            print_menu_select_str("Video 7:    %8s", video7_enabled ? " Enabled" : "Disabled", 24, (selected_item == 6), 0);
             gotoy(y+12); gotox(8);
-            print_menu_select("Edit Palette", 24, (selected_item == 6), 0);
+            print_menu_select("Edit Palette", 24, (selected_item == 7), 0);
 
             gotoy(y+14); gotox(8);
-            print_menu_select("Back to Main Menu", 24, (selected_item == 7), 0);
+            print_menu_select("Back to Main Menu", 24, (selected_item == 8), 0);
 
             paint_menu = 0;
         }
@@ -1575,7 +1585,7 @@ void video_menu(void) {
                 break;
             case 0x15:
             case 0x0A:
-                if(selected_item < 7) {
+                if(selected_item < 8) {
                     selected_item++;
                     paint_menu = 1;
                 }
